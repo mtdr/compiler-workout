@@ -27,21 +27,21 @@ let evalByInst config insn =
 	let (stack, statem_cfg) = config in
 	let (state, input, output) = statem_cfg in
 	match insn with
-	| BINOP operator -> (match stack with
-		| y::x::tail -> ([(Syntax.Expr.get_operator operator) x y]@tail, statem_cfg))
+	    | BINOP operator -> (match stack with
+		    | y::x::tail -> ([(Syntax.Expr.get_operator operator) x y]@tail, statem_cfg))
 
-    | CONST value -> ([value]@stack, statem_cfg)
+        | CONST value -> ([value]@stack, statem_cfg)
 
-	| READ -> (match input with
-		| head::tail -> ([head]@stack, (state, tail, output)))
+	    | READ -> (match input with
+		    | head::tail -> ([head]@stack, (state, tail, output)))
 
-	| WRITE -> (match stack with
-		| head::tail -> (tail, (state, input, output@[head])))
+	    | WRITE -> (match stack with
+		    | head::tail -> (tail, (state, input, output@[head])))
 
-	| LD  variable_name -> ([state variable_name]@stack, statem_cfg)
+	    | LD  variable_name -> ([state variable_name]@stack, statem_cfg)
 
-	| ST  variable_name -> (match stack with
-		| head::tail -> (tail, (Syntax.Expr.update variable_name head state, input, output)))
+	    | ST  variable_name -> (match stack with
+		    | head::tail -> (tail, (Syntax.Expr.update variable_name head state, input, output)))
 
 let eval config prog = List.fold_left evalByInst config prg
 
