@@ -43,7 +43,7 @@ let evalByInst config insn =
 	    | ST  variable_name -> (match stack with
 		    | head::tail -> (tail, (Syntax.Expr.update variable_name head state, input, output)))
 
-let eval config prog = List.fold_left evalByInst config prg
+let eval config prg = List.fold_left evalByInst config prg
 
 (* Top-level evaluation
 
