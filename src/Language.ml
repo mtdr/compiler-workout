@@ -79,15 +79,15 @@ module Expr =
         expr:
       	    !(Ostap.Util.expr
       		    (fun x -> x)
-      			    (Array.map (fun (asc, ops) -> asc, List.map prsBinOp ops))
-      				[|
-                        `Lefta, ["!!"];
-                        `Lefta, ["&&"];
-                        `Nona , ["<="; "<"; ">="; ">"; "=="; "!="];
-                        `Lefta, ["+"; "-"];
-                        `Lefta, ["*"; "/"; "%"];
-                    |]
-      				primary
+      		    (Array.map (fun (asc, ops) -> asc, List.map prsBinOp ops))
+      		    [|
+      		        `Lefta, ["!!"];
+                    `Lefta, ["&&"];
+                    `Nona , ["<="; "<"; ">="; ">"; "=="; "!="];
+                    `Lefta, ["+"; "-"];
+                    `Lefta, ["*"; "/"; "%"];
+                |]
+      		    primary
       		);
       	primary: x:IDENT {Var x} | c:DECIMAL {Const c} | -"(" expr -")"
     )

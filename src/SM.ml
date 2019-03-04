@@ -29,7 +29,7 @@ let evalByInst config insn =
 	let (state, input, output) = statem_cfg in
 	match insn with
 	| BINOP operator -> (match stack with
-		| y::x::tail -> ([(Syntax.Expr.get_operator operator) x y]@tail, statem_cfg))
+		| y::x::tail -> ([(Language.Expr.get_operator operator) x y]@tail, statem_cfg))
 
     | CONST value -> ([value]@stack, statem_cfg)
 
@@ -42,7 +42,7 @@ let evalByInst config insn =
 	| LD  variable_name -> ([state variable_name]@stack, statem_cfg)
 
 	| ST  variable_name -> (match stack with
-		| head::tail -> (tail, (Syntax.Expr.update variable_name head state, input, output)))
+		| head::tail -> (tail, (Language.Expr.update variable_name head state, input, output)))
 
 let eval config prg = List.fold_left evalByInst config prg
 
@@ -63,13 +63,13 @@ let run p i = let (_, (_, _, o)) = eval ([], (Language.Expr.empty, i, [])) p in 
  *)
 let rec compile_expr expr =
 	match expr with
-		| Syntax.Expr.Const const -> [CONST const]
-        | Syntax.Expr.Var var -> [LD var]
-        | Syntax.Expr.Binop (operator, left_expression, right_expression) -> (compile_expr left_expression)@(compile_expr right_expression)@[BINOP operator];;
+		| Language.Expr.Const const -> [CONST const]
+        | Language.Expr.Var var -> [LD var]
+        | Language.Expr.Binop (operator, left_expression, right_expression) -> (compile_expr left_expression)@(compile_expr right_expression)@[BINOP operator];;
 
 let rec compile statement =
 	match statement with
-		| Syntax.Stmt.Read variable_name -> [READ; ST variable_name]
-		| Syntax.Stmt.Write expression -> (compile_expr expression)@[WRITE]
-		| Syntax.Stmt.Assign (variable_name, expression) -> (compile_expr expression)@[ST variable_name]
-		| Syntax.Stmt.Seq (statement1, statement2) -> (compile statement1)@(compile statement2);;
+		| Language.Stmt.Read variable_name -> [READ; ST variable_name]
+		| Language.Stmt.Write expression -> (compile_expr expression)@[WRITE]
+		| Language.Stmt.Assign (variable_name, expression) -> (compile_expr expression)@[ST variable_name]
+		| Language.Stmt.Seq (statement1, statement2) -> (compile statement1)@(compile statement2);;
