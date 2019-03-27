@@ -55,6 +55,11 @@ module Expr =
         +, -                 --- addition, subtraction
         *, /, %              --- multiplication, division, reminder
     *)
+
+     (* Update: non-destructively "modifies" the state s by binding the variable x
+          to value v and returns the new state.
+        *)
+    let update x v s = fun y -> if x = y then v else s y
       
     (* Expression evaluator
 
