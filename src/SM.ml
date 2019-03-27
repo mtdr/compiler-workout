@@ -33,7 +33,7 @@ type config = (prg * State.t) list * int list * Stmt.config
 *)                         
 let instrEval (stack, (s, i, o)) instruction = match instruction with
     | BINOP op -> (match stack with
-        | y :: x :: tail -> ((Language.Expr.binopEval op x y) :: tail, (s, i, o))
+        | y :: x :: tail -> ((Language.Expr.to_func op x y) :: tail, (s, i, o))
         | _              -> failwith "Not enough elements in stack")
     | CONST z  -> (z :: stack, (s, i, o))
     | READ     -> (match i with
