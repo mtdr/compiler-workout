@@ -57,21 +57,19 @@ module Expr =
         | "&&" -> boolToInt ((intToBool a) && (intToBool b))
         | _ -> failwith (Printf.sprintf "Unknown operation %s" op)
 
+     (* Expression evaluator
+
+              val eval : state -> t -> int
+
+           Takes a state and an expression, and returns the value of the expression in
+           the given state.
+        *)
     let rec eval state expression = match expression with
 	  | Const const -> const
 	  | Var var -> state var
 	  | Binop (operator, leftEx, rightEx) -> binopEval operator (eval state leftEx) (eval state rightEx);;
 
     let prsBinOp op = ostap(- $(op)), (fun x y -> Binop (op, x, y))
-
-    (* Expression evaluator
-
-          val eval : state -> t -> int
- 
-       Takes a state and an expression, and returns the value of the expression in 
-       the given state.
-    *)                                                       
-    let eval st expr = failwith "Not yet implemented"
 
     (* Expression parser. You can use the following terminals:
 
