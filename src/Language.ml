@@ -158,17 +158,17 @@ module Expr =
        which takes an environment (of the same type), a name of the function, a list of actual parameters and a configuration, 
        an returns a pair: the return value for the call and the resulting configuration
     *)                                                       
-    let rec eval env ((st, i, o, r) as conf) expr =
-    | Const n  -> (st, i, o, Some (Value.of_int n))
-          | Array l  -> let (st, i, o, v) = eval_list env conf l in env#definition env "$array" v (st, i, o, None)
-          | String s -> (st, i, o, Some (Value.of_string s))
-          | Var x    -> (st, i, o, Some (State.eval st x))
-          | Binop (op, x, y) -> let ((st, i, o, Some a) as conf') = eval env conf x in
+    let rec eval env ((st, i, o, r) as conf) expr = match expr with
+        | Const n  -> (st, i, o, Some (Value.of_int n))
+        | Array l  -> let (st, i, o, v) = eval_list env conf l in env#definition env "$array" v (st, i, o, None)
+        | String s -> (st, i, o, Some (Value.of_string s))
+        | Var x    -> (st, i, o, Some (State.eval st x))
+        | Binop (op, x, y) -> let ((st, i, o, Some a) as conf') = eval env conf x in
                                   let (st, i, o, Some b) = eval env conf' y in
                                   (st, i, o, Some (Value.of_int @@ MyUtils.toFunc op (Value.to_int a) (Value.to_int b)))
-          | Elem (a, i)      -> let (st, i, o, v) = eval_list env conf [a; i] in env#definition env "$elem" v (st, i, o, None)
-          | Length n         -> let (st, i, o, v) = eval_list env conf [n] in env#definition env "$length" v (st, i, o, None)
-          | Call (fName, argsE) -> let (st', i', o', args) = List.fold_left (fun (st, i, o, args) e ->
+        | Elem (a, i)      -> let (st, i, o, v) = eval_list env conf [a; i] in env#definition env "$elem" v (st, i, o, None)
+        | Length n         -> let (st, i, o, v) = eval_list env conf [n] in env#definition env "$length" v (st, i, o, None)
+        | Call (fName, argsE) -> let (st', i', o', args) = List.fold_left (fun (st, i, o, args) e ->
                                                                               let ((st, i, o, Some r) as conf') = eval env (st, i, o, None) e in
                                                                               (st, i, o, args @ [r])
                                                                             ) (st, i, o, []) argsE in
