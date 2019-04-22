@@ -261,11 +261,113 @@ let compile env code =
 module S = Set.Make (String)
 
 (* A map indexed by strings *)
+let compile_binop op loc_x loc_y loc_r =
 module M = Map.Make (String)
+let y2a_compute_send comp = [Mov (loc_y, eax)] @ comp @ [Mov (eax, loc_r)] in
+  let compareyx_single_send flag = [Mov (loc_y, eax); Binop ("-", loc_x, eax);
+                                    Mov (L 0, eax); Set (flag, "%al"); Mov (eax, loc_r)] in
+  let compareyx_double_send flag1 flag2 joiner = [Mov (loc_y, eax); Binop ("-", loc_x, eax); Mov (eax, loc_r);
+                                                  Mov (L 0, eax); Mov (L 0, edx); Set (flag1, "%al"); Set (flag2, "%dl");
+                                                  Binop (joiner, edx, eax); Mov (eax, loc_r)] in
+  let logicop_send op =
+    let signum arg = [Push ebp; Mov (arg, ebp); Binop ("!!", ebp, ebp); Pop ebp]
+    in [Mov (L 0, eax); Mov (L 0, edx)]
+       @ signum loc_x @ [Set ("nz", "%dl")] @ signum loc_y
+       @ [ Set ("nz", "%al"); Binop (op, edx, eax); Mov (eax, loc_r)]
+  in match op with
+     | "+" -> y2a_compute_send [Binop ("+", loc_x, eax)]
+     | "-" -> y2a_compute_send [Binop ("-", loc_x, eax)]
+     | "*" -> y2a_compute_send [Binop ("*", loc_x, eax)]
+     | "/" -> y2a_compute_send [Cltd; IDiv loc_x]
+     | "%" -> y2a_compute_send [Cltd; IDiv loc_x; Mov (edx, eax)]
+
+      | "==" -> compareyx_single_send "z"
+     | "!=" -> compareyx_single_send "nz"
+     | "<=" -> compareyx_double_send "z" "s" "!!"
+     | "<"  -> compareyx_single_send "s"
+     | ">=" -> compareyx_double_send "z" "ns" "!!"
+     | ">"  -> compareyx_double_send "nz" "ns" "&&"
+
+      | "!!" -> logicop_send "!!"
+     | "&&" -> logicop_send "&&"
+
+ let compile_instr env instr =
+  let force_reg_mov loc_from loc_to = match loc_from, loc_to with
+    | R _ , _
+    | L _, _
+    | _ , R _
+    | _, L _ -> [Mov (loc_from, loc_to)]
+    | _, _ -> [Mov (loc_from, eax); Mov (eax, loc_to)]
+  in match instr with
+     | CONST n -> let loc, env' = env#allocate in env', [Mov (L n, loc)]
+     | ST var -> let env' = env#global var in
+                 let loc, env'' = env'#pop in
+                 env'', force_reg_mov loc (env''#loc var)
+     | LD var -> let env' = env#global var in
+                 let loc, env'' = env'#allocate in
+                 env'', force_reg_mov (env''#loc var) loc
+     | BINOP op -> let loc_x, loc_y, env' = env#pop2 in
+                   let loc_r, env'' = env'#allocate in
+                   env'', compile_binop op loc_x loc_y loc_r
+     | LABEL label -> env, [Label label]
+     | JMP label -> env, [Jmp label]
+     | CJMP (mode, label) ->
+        let loc_arg, env' = env#pop in
+        let loc_res, env'' = env'#allocate in
+        (* Force evaluate stack top because expression may not include computations at all *)
+        let force_compute = compile_binop "!!" loc_arg loc_arg loc_res in
+        env'', force_compute @ [CJmp (mode, label)]
+     | RET (opt_return) ->
+        let end_jmp = Jmp (env#epilogue)
+        in (if (opt_return)
+            then (let loc, env' = env#pop
+                  in env', [Mov (loc, eax); end_jmp])
+            else env, [end_jmp])
+     | BEGIN (name, args, locals) ->
+        let env' = env#enter name args locals in
+        let locals_allocation = Binop ("-", M ("$" ^ env'#lsize), esp) in
+        let prologue = [Push ebp; Mov (esp, ebp); locals_allocation] in
+        env', prologue
+     | END ->
+        let epilogue = [Mov (ebp, esp); Pop ebp] in
+        let const_setup = (Printf.sprintf "\t.set %s, %d" env#lsize (env#allocated * word_size)) in
+        env, [Label env#epilogue] @ epilogue @ [Ret; Meta const_setup]
+     | CALL (name, args_amount, returns_value) ->
+        let name = match name with
+          | "write" -> "Lwrite"
+          | "read" -> "Lread"
+          | _ -> name in
+        let save_registers, restore_registers =
+          let reg_ops reg = Push reg, Pop reg in
+          let op_pairs = List.map reg_ops env#live_registers in
+          let forward, backward' = List.split op_pairs in
+          forward, List.rev backward' in
+        let env, _, symbolic2hardware =
+          let rec place_args env' rem_amount pushes = match rem_amount with
+            | 0 -> env', 0, pushes
+            | _ -> let pop_from, env'' = env'#pop in
+                   place_args env'' (rem_amount-1) ((Push pop_from)::pushes)
+          in place_args env args_amount [] in
+        (* call *)
+        let restore_stack = [Binop ("+", L (args_amount * word_size), esp)] in
+        let env, hardware2symbolic =
+          if returns_value
+          then let push_to, env' = env#allocate in env', [Mov (eax, push_to)]
+          else env, []
+        in env, save_registers @ symbolic2hardware @ [Call name]
+                @ restore_stack @ restore_registers @ hardware2symbolic
+
+ let rec compile env program = match program with
+  (* | [] -> env, [Comment] *)
+  | [] -> env, []
+  | cmd::program' -> let (env', cmd_compiled) = compile_instr env cmd in
+                     let (env'', program_compiled) = compile env' program' in
+                     env'', [] @ cmd_compiled  @ program_compiled
 
 (* Environment implementation *)
-let make_assoc l = List.combine l (List.init (List.length l) (fun x -> x))
-                     
+let rec buildList i n = let x = i+1 in if i <= n then i::(buildList x n) else []
+let make_assoc l = List.combine l (buildList 0 ((List.length l) - 1))
+
 class env =
   object (self)
     val globals     = S.empty (* a set of global variables         *)
@@ -287,11 +389,11 @@ class env =
     method allocate =    
       let x, n =
 	let rec allocate' = function
-	| []                            -> ebx     , 0
+	| []                            -> R 0     , 0
 	| (S n)::_                      -> S (n+1) , n+2
 	| (R n)::_ when n < num_of_regs -> R (n+1) , stack_slots
-        | (M _)::s                      -> allocate' s
-	| _                             -> S 0     , 1
+    | (M _)::s                      -> allocate' s
+	| _                             -> let n = List.length locals in S n, n + 1
 	in
 	allocate' stack
       in
@@ -320,9 +422,6 @@ class env =
     (* gets all global variables *)      
     method globals = S.elements globals
 
-    (* gets all string definitions *)      
-    method strings = M.bindings stringm
-
     (* gets a number of stack positions allocated *)
     method allocated = stack_slots                                
                                 
@@ -338,13 +437,7 @@ class env =
 
     (* returns a list of live registers *)
     method live_registers depth =
-      let rec inner d acc = function
-      | []             -> acc
-      | (R _ as r)::tl -> inner (d+1) (if d >= depth then (r::acc) else acc) tl
-      | _::tl          -> inner (d+1) acc tl
-      in
-      inner 0 [] stack
-       
+        List.filter (function R _ -> true | _ -> false) stack
   end
   
 (* Generates an assembler text for a program: first compiles the program into
@@ -357,8 +450,7 @@ let genasm (ds, stmt) =
       (new env)
       ((LABEL "main") :: (BEGIN ("main", [], [])) :: SM.compile (ds, stmt))
   in
-  let data = Meta "\t.data" :: (List.map (fun s      -> Meta (Printf.sprintf "%s:\t.int\t0"         s  )) env#globals) @
-                               (List.map (fun (s, v) -> Meta (Printf.sprintf "%s:\t.string\t\"%s\"" v s)) env#strings) in 
+  let data = Meta "\t.data" :: (List.map (fun s -> Meta (s ^ ":\t.int\t0")) env#globals) in
   let asm = Buffer.create 1024 in
   List.iter
     (fun i -> Buffer.add_string asm (Printf.sprintf "%s\n" @@ show i))
