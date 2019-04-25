@@ -262,8 +262,7 @@ module S = Set.Make (String)
 
 (* A map indexed by strings *)
 let compile_binop op loc_x loc_y loc_r =
-module M = Map.Make (String)
-let y2a_compute_send comp = [Mov (loc_y, eax)] @ comp @ [Mov (eax, loc_r)] in
+  let y2a_compute_send comp = [Mov (loc_y, eax)] @ comp @ [Mov (eax, loc_r)] in
   let compareyx_single_send flag = [Mov (loc_y, eax); Binop ("-", loc_x, eax);
                                     Mov (L 0, eax); Set (flag, "%al"); Mov (eax, loc_r)] in
   let compareyx_double_send flag1 flag2 joiner = [Mov (loc_y, eax); Binop ("-", loc_x, eax); Mov (eax, loc_r);
