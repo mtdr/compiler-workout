@@ -1,6 +1,6 @@
-open GT       
+open GT
 open Language
-       
+
 (* The type for the stack machine instructions *)
 @type insn =
 (* binary operator                 *) | BINOP   of string
@@ -26,12 +26,14 @@ open Language
 (* comment                  *)        | COMMENT of string
 (*  *)                                | CZCLEARJMP of string * int
 with show
-                                                   
-(* The type for the stack machine program *)
-type prg = insn list
+
 
 let i2s = GT.transform(insn) (new @insn[show]) ()
 let print_prg p = List.iter (fun i -> Printf.eprintf "%s\n" (show(insn) i)) p
+
+
+(* The type for the stack machine program *)
+type prg = insn list
 
 (* The type for the stack machine configuration: control stack, stack and configuration from statement
    interpreter
@@ -39,32 +41,23 @@ let print_prg p = List.iter (fun i -> Printf.eprintf "%s\n" (show(insn) i)) p
 type config = (prg * State.t) list * Value.t list * Expr.config
 
 (* Stack machine interpreter
-
      val eval : env -> config -> prg -> config
-
    Takes an environment, a configuration and a program, and returns a configuration as a result. The
    environment is used to locate a label to jump to (via method env#labeled <label_name>)
-*)                                                  
+*)
 let split n l =
   let rec unzip (taken, rest) = function
   | 0 -> (List.rev taken, rest)
   | n -> let h::tl = rest in unzip (h::taken, tl) (n-1)
   in
   unzip ([], l) n
-          
-  let rec eval _ = failwith "Not implemented yet"
 
-(* Top-level evaluation
-
-     val run : prg -> int list -> int list
-
-   Takes a program, an input stream, and returns an output stream this program calculates
-*)
 let rec eval env (cs, (ds:Value.t list), (state, inp, out, (foo: Value.t option) as subconf) as config2) program =
   let rec eval_cmd config command = match config, command with
     | (_, y::x::rest, _), BINOP (str_op)
       -> let result=Value.of_int (Expr.to_func str_op (Value.to_int x) (Value.to_int y))
          in (cs, result::rest, subconf)
+
     | _, COMMENT _ -> (cs, ds, subconf)
     | _, CONST value -> (cs, (Value.of_int value)::ds, subconf)
     | _, STRING str -> (cs, (Value.of_string (Bytes.of_string str))::ds, subconf)
@@ -89,7 +82,7 @@ let rec eval env (cs, (ds:Value.t list), (state, inp, out, (foo: Value.t option)
        (cs, ds', (state', inp, out, foo))
     | _, LABEL _ -> config
 
-   and eval_complex_cmd config2 program =  match program with
+  and eval_complex_cmd config2 program =  match program with
      | (JMP label)::_ -> eval env config2 (env#labeled label)
      | (CJMP (mode, label))::next ->
         let top::rest = ds in
@@ -128,14 +121,17 @@ let rec eval env (cs, (ds:Value.t list), (state, inp, out, (foo: Value.t option)
         else eval env (cs, stack', subconf) next
      | cmd::rest -> eval env (eval_cmd config2 cmd) rest
 
-   in match program with
+  in match program with
      | [] -> config2
      | cmd::_ ->
         (* Printf.eprintf "Executing %s with stack [%s]\n" (show insn cmd) (String.concat " , " (List.map Value.v2s ds)); *)
         eval_complex_cmd config2 program
 
+(* Top-level evaluation
+     val run : prg -> int list -> int list
+   Takes a program, an input stream, and returns an output stream this program calculates
+*)
 let run p i =
-  (*print_prg p;*)
   let module M = Map.Make (String) in
   let rec make_map m = function
   | []              -> m
@@ -151,10 +147,11 @@ let run p i =
          method builtin (cstack, stack, (st, i, o, _)) f n p =
            let f = match f.[0] with 'L' -> String.sub f 1 (String.length f - 1) | _ -> f in
            let args, stack' = split n stack in
-           let (st, i, o, r) = Language.Builtin.eval (st, i, o, None) (List.rev args) f in
-           let stack'' = if p then stack' else let Some r = r in r::stack' in
-           (*Printf.printf "Builtin:\n";*)
-           (cstack, stack'', (st, i, o))
+           (* MODIFIED: arguments are already reversed *)
+           let (st, i, o, r) = Builtin.eval (st, i, o, None) (args) f in
+           (* MOFIDIED: true means should return *)
+           let stack'' = if p then let Some r = r in r::stack' else stack' in
+           (cstack, stack'', (st, i, o, None))
        end
       )
       ([], [], (State.empty, i, [], None))
@@ -163,12 +160,10 @@ let run p i =
   o
 
 (* Stack machine compiler
-
      val compile : Language.t -> prg
-
    Takes a program in the source language and returns an equivalent program for the
    stack machine
-*)
+ *)
 let soi = string_of_int
 let rec list_init i n = let x = i+1 in if i < n then i::(list_init x n) else []
 class compiler =
@@ -177,9 +172,9 @@ class compiler =
     val caseof_count = 0
     val cur_patterns_count = 0
 
-     method next_label = {< label_count = label_count+1 >}
+    method next_label = {< label_count = label_count+1 >}
 
-     method suffix = soi label_count
+    method suffix = soi label_count
     method get_if_labels =
       "else_" ^ self#suffix, "fi_" ^ self#suffix, self#next_label
     method get_while_labels =
@@ -189,7 +184,7 @@ class compiler =
     method get_repeatuntil_label =
       "repeat_" ^ self#suffix, self#next_label
 
-     method get_caseof_labels amount =
+    method get_caseof_labels amount =
       let variant_label index = "pattern_" ^ self#suffix ^ soi index in
       (List.map variant_label (list_init 0 amount),
        variant_label amount, "esac_" ^ self#suffix,
@@ -291,7 +286,7 @@ let rec compile (defs, main) =
        let variants_labels, mock_label, esac_label, compiler = compiler#get_caseof_labels (List.length variants) in
        let labels_pairs = List.combine variants_labels (let _::shifted = variants_labels in shifted @ [mock_label]) in
 
-        let compile_variant_impl comp (pattern, stmt) (cur_label, next_label) =
+       let compile_variant_impl comp (pattern, stmt) (cur_label, next_label) =
          let stmt_body, comp  = compile_impl comp stmt in
          [LABEL cur_label; DUP] @ compile_matcher next_label 1 pattern
          @ [COMMENT "matching ended"]
