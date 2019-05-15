@@ -2,7 +2,7 @@
 
 Supplementary repository for compiler course.
 
-Prerequisites: ocaml [http://ocaml.org] (recommended version 4.06.01), opam [http://opam.ocaml.org] (recommended version >= 2.0.1), gcc-multilib.
+Prerequisites: ocaml [http://ocaml.org] (recommended version 4.07.1), opam [http://opam.ocaml.org] (recommended version >= 2.0.1), gcc-multilib.
 
 
 Building:
