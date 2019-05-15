@@ -7,7 +7,7 @@ Prerequisites: ocaml [http://ocaml.org] (recommended version 4.06.01), opam [htt
 
 Building:
 
-* opam pin add GT https://github.com/kakadu/GT.git#ppx
+* opam pin add GT https://github.com/kakadu/GT.git#v0.0.1
 * opam pin add ostap https://github.com/dboulytchev/ostap.git
 * opam install ostap
 * opam install GT
