@@ -321,7 +321,7 @@ module Stmt =
           var: name:IDENT { Ident name }
         )
         
-        let vars p = transform(t) (object inherit [string list] @t[foldl] method c_Ident s _ name = name::s end) [] p
+        let vars p = transform(t) (fun f -> object inherit [string list, _] @t[foldl] f method c_Ident s _ name = name::s end) [] p
         
       end
         
