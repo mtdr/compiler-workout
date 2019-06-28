@@ -164,6 +164,14 @@ let rec compileWithLabels p lastL =
     let (repeatBody, _) = compileWithLabels body lastL in
     ([LABEL lLoop] @ repeatBody @ expr e @ [CJMP ("z", lLoop)]), false
   | Stmt.Skip -> [], false
+  | Stmt.ForEach (x, e1, e2, body) ->
+              let x = e1 in
+              let lLoop = labelGen#get in
+              let lIncr = labelGen#get in
+              let lQuit = labelGen#get in
+              let (doBody, _) = compileWithLabels body lIncr in
+                  ([LABEL lLoop] @ expr x @ expr e1 @ [BINOP ">="] @ [CJMP("z", lQuit)] @ expr x @ expr e1 @ [BINOP "<="] @ [CJMP("z", lQuit)]
+                  @ doBody @ [LABEL lIncr] @ expr x @ [CONST 1] @ [BINOP "+"] @ [JMP lLoop] @ [LABEL lQuit]), false
   | Stmt.Call (fName, argsE) -> let compiledArgs = List.flatten (List.map (expr) (List.rev argsE)) in
                                 compiledArgs @ [CALL (fName, List.length argsE, false)], false
   | Stmt.Return e -> (match e with

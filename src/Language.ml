@@ -238,7 +238,9 @@ module Stmt =
     (* loop with a pre-condition        *) | While  of Expr.t * t
     (* loop with a post-condition       *) | Repeat of t * Expr.t
     (* return statement                 *) | Return of Expr.t option
+    (* foreach                          *) | ForEach    of Expr.t * Expr.t * Expr.t * t
     (* call a procedure                 *) | Call   of string * Expr.t list
+
                                                                     
     (* Statement evaluator
 
@@ -302,6 +304,11 @@ module Stmt =
              };
           whileStmt:
             "while" e:!(Expr.parse) "do" body:parse "od" {While (e, body)};
+          foreach:
+                  "foreach" x:!(Expr.expr) "in [" e1:!(Expr.expr) "..." e2:!(Expr.expr) "]"
+                      "do" body:parse "od" {
+                          ForEach(x, e1, e2, body);
+                      };
           forStmt:
             "for" initStmt:stmt "," whileCond:!(Expr.parse) "," forStmt:stmt
             "do" body:parse "od" {Seq (initStmt, While (whileCond, Seq (body, forStmt)))};
@@ -311,6 +318,7 @@ module Stmt =
               ifStmt
             | whileStmt
             | forStmt
+            | foreach
         | repeatUntilStmt
         | "skip" {Skip};
           call:
