@@ -1,4 +1,9 @@
 x := read ();
 y := read ();
-z := x*y*3;
+x := 10;
+z := 85;
+foreach x in [0..5]
+do
+	z := z + x;
+od
 write (z)
