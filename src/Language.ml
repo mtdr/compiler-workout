@@ -305,7 +305,7 @@ module Stmt =
           whileStmt:
             "while" e:!(Expr.parse) "do" body:parse "od" {While (e, body)};
           foreach:
-                  "foreach" x:!(Expr.expr) "in [" e1:!(Expr.expr) "..." e2:!(Expr.expr) "]"
+                  "foreach" x:!(Expr.parse) "in [" e1:!(Expr.parse) "..." e2:!(Expr.parse) "]"
                       "do" body:parse "od" {
                           ForEach(x, e1, e2, body);
                       };
