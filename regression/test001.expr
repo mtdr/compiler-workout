@@ -1,9 +1,14 @@
-x := read ();
-y := read ();
-x := 10;
-z := 85;
-foreach x in [0...5]
+n := read ();
+
+fib_1 := 1;
+fib_2 := 1;
+fib   := 1;
+
+foreach i in [2...n-1]
 do
-z := z + x
+      fib   := fib_1 + fib_2;
+      fib_2 := fib_1;
+      fib_1 := fib
 od;
-write (z)
+
+write (fib)
