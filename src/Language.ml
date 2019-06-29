@@ -281,7 +281,7 @@ module Stmt =
       | While (e, wStmt)           -> let ((st, i, o, Some r) as conf') = Expr.eval env conf e in
                                         if MyUtils.int_to_bool (Value.to_int r) then eval env conf' (metaOp stmt k) wStmt
                                         else eval env conf' Skip k
-      | ForEach (x, e1, e2, b)            -> if Expr.Binop ("<=", Expr.eval st e1, Expr.eval st e2) then
+      | ForEach (x, e1, e2, b)            -> if Expr.Binop ("<=", e1, e2) then
 			(*Expr.update x (Expr.eval s e1) s, i, o*)
 			eval (eval (st, i, o) b) stmt else (st, i, o)
       | Repeat (ruStmt, e)         -> eval env conf (metaOp (While (Expr.Binop ("==", e, Expr.Const 0), ruStmt)) k) ruStmt
