@@ -1,14 +1,10 @@
-n := read ();
-
-fib_1 := 1;
-fib_2 := 1;
+n := read();
 fib   := 1;
+i := 5;
 
-foreach i in [2...n-1]
+foreach i in [2...5]
 do
-      fib   := fib_1 + fib_2;
-      fib_2 := fib_1;
-      fib_1 := fib
+      fib   := fib + i
 od;
 
 write (fib)
