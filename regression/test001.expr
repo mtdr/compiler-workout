@@ -5,5 +5,5 @@ z := 85;
 foreach x in [0...5]
 do
 z := z + x
-od
+od;
 write (z)
